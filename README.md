@@ -1,4 +1,4 @@
-![]([https://github.com/user/banner.png](https://repository-images.githubusercontent.com/1031369014/18acd53d-4fc0-43d0-9520-0b830c9040fb)) 
+![](https://repository-images.githubusercontent.com/1031369014/18acd53d-4fc0-43d0-9520-0b830c9040fb)
 
 # Reddigest - Reddit Threads Digest
 
