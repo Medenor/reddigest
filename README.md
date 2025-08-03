@@ -24,7 +24,7 @@ To set up and run Reddit Digest, follow these steps:
 2.  **Create a virtual environment (recommended):**
     ```bash
     python3 -m venv .venv
-    source .venv/bin/activate
+    source .venv/bin/activate  # On Windows, use `venv\Scripts\activate`
     ```
 
 3.  **Install dependencies:**
