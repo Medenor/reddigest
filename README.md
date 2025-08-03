@@ -1,7 +1,9 @@
-# Reddit Digest
+![]([https://github.com/user/banner.png](https://repository-images.githubusercontent.com/1031369014/18acd53d-4fc0-43d0-9520-0b830c9040fb)) 
+
+# Reddigest - Reddit Threads Digest
 
 ## Description
-Reddit Digest is a Python application designed to generate digests from Reddit posts. It allows users to link a thread from a subreddit, and then generate a summary in Markdown format. The application also features a graphical user interface (GUI) for ease of use.
+Reddigest is a Python application designed to generate digests from Reddit posts. It allows users to link a thread from a subreddit, and then generate a summary in Markdown format. The application also features a graphical user interface (GUI) for ease of use.
 
 ## Features
 *   Generate digests from specified subreddits.
@@ -13,7 +15,7 @@ Reddit Digest is a Python application designed to generate digests from Reddit p
 
 ## Installation
 
-To set up and run Reddit Digest, follow these steps:
+To set up and run Reddigest, follow these steps:
 
 1.  **Clone the repository:**
     ```bash
