@@ -66,3 +66,4 @@ This project offers two main approaches for generating summaries:
 ## License
 
 This project is licensed under the MIT License. See the `LICENSE` file for details.
+Reddit and all related trademarks, logos, and other proprietary elements are owned by Reddit. This project is not affiliated with or endorsed by Reddit.
