@@ -2,6 +2,8 @@ import praw
 import re
 import configparser
 import os
+from urllib.parse import urlparse
+import html
 
 # Try to import OpenAI and Google Generative AI libraries
 try:
@@ -65,13 +67,8 @@ def load_api_keys():
         api_keys['google_gemini_api_key'] = config.get('api_keys', 'google_gemini_api_key', fallback=None)
     return api_keys
 
-from urllib.parse import urlparse
-import html
-
 def validate_reddit_url(url):
-    """
-    Enhanced URL validation for Reddit URLs
-    """
+    # Enhanced URL validation for Reddit URLs
     # Check if URL is None or empty
     if not url:
         return False, "URL is required"
@@ -112,9 +109,7 @@ def validate_reddit_url(url):
     return True, "Valid URL"
 
 def sanitize_input(text):
-    """
-    Sanitize user input to prevent XSS
-    """
+    # Sanitize user input to prevent XSS
     if not text:
         return ""
     # Remove or escape potentially dangerous characters
