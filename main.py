@@ -87,7 +87,12 @@ class RedditDigestApp(QWidget):
 
         # Call the get_reddit_digest function from reddit_digest.py
         digest_result = get_reddit_digest(url, summarization_method, selected_model, detail_level)
-        self.digest_output.setText(digest_result)
+        
+        # Check if the result indicates an error from validation
+        if digest_result.startswith("Invalid Reddit URL:"):
+            QMessageBox.warning(self, "Input Error", digest_result)
+        else:
+            self.digest_output.setText(digest_result)
 
     def update_model_selection(self, index):
         from reddit_digest import get_available_openai_models, get_available_gemini_models

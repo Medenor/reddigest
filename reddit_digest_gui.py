@@ -110,7 +110,12 @@ class RedditDigestApp(QWidget):
         
         # Call the backend function to get the digest
         digest_result = get_digest_from_backend(url, summarization_method=selected_method, model_name=selected_model)
-        self.digest_output.setText(digest_result)
+        
+        # Check if the result indicates an error from validation
+        if digest_result.startswith("Invalid Reddit URL:"):
+            QMessageBox.warning(self, "Input Error", digest_result)
+        else:
+            self.digest_output.setText(digest_result)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

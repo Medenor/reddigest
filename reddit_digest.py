@@ -65,6 +65,64 @@ def load_api_keys():
         api_keys['google_gemini_api_key'] = config.get('api_keys', 'google_gemini_api_key', fallback=None)
     return api_keys
 
+from urllib.parse import urlparse
+import html
+
+def validate_reddit_url(url):
+    """
+    Enhanced URL validation for Reddit URLs
+    """
+    # Check if URL is None or empty
+    if not url:
+        return False, "URL is required"
+    
+    # Parse the URL
+    try:
+        parsed_url = urlparse(url)
+    except Exception:
+        return False, "Invalid URL format"
+    
+    # Check scheme
+    if parsed_url.scheme not in ['http', 'https']:
+        return False, "URL must use HTTP or HTTPS"
+    
+    # Check domain (whitelisting)
+    allowed_domains = ['reddit.com', 'www.reddit.com']
+    if parsed_url.netloc not in allowed_domains:
+        return False, f"Domain not allowed. Allowed domains: {', '.join(allowed_domains)}"
+    
+    # Check path structure using more comprehensive regex
+    path_pattern = r'^/r/([^/]+)/comments/([^/]+)(/[^/]*)?/?$'
+    match = re.match(path_pattern, parsed_url.path)
+    
+    if not match:
+        return False, "Invalid Reddit URL structure. Expected format: https://www.reddit.com/r/subreddit/comments/post_id/"
+    
+    subreddit = match.group(1)
+    post_id = match.group(2)
+    
+    # Additional validation for subreddit and post_id
+    if not subreddit or not post_id:
+        return False, "Invalid subreddit or post ID"
+    
+    # Check for potentially malicious characters
+    if re.search(r'[<>"\']', subreddit) or re.search(r'[<>"\']', post_id):
+        return False, "Invalid characters in subreddit or post ID"
+    
+    return True, "Valid URL"
+
+def sanitize_input(text):
+    """
+    Sanitize user input to prevent XSS
+    """
+    if not text:
+        return ""
+    # Remove or escape potentially dangerous characters
+    sanitized = html.escape(text)
+    # Remove null bytes
+    sanitized = sanitized.replace('\x00', '')
+    return sanitized
+
 def summarize_with_openai(comments, api_key, model_name, detail_level="standard"):
     if not openai:
         return "OpenAI library not installed."
@@ -127,11 +185,16 @@ def summarize_with_gemini(comments, api_key, model_name, detail_level="standard"
         return f"Error summarizing with Google Gemini: {e}"
 
 def get_reddit_digest(url, summarization_method="top5", model_name=None, detail_level=None):
-    # Validate URL format
-    match = re.match(r"https://www.reddit.com/r/([^/]+)/comments/([^/]+)/", url)
-    if not match:
-        return "Invalid Reddit URL. Please provide a URL for a specific post (e.g., https://www.reddit.com/r/python/comments/...). The URL should contain '/comments/'."
-
+    # Enhanced URL validation
+    is_valid, message = validate_reddit_url(url)
+    if not is_valid:
+        return f"Invalid Reddit URL: {message}"
+    
+    # Parse URL to extract components
+    parsed_url = urlparse(url)
+    path_pattern = r'^/r/([^/]+)/comments/([^/]+)(/[^/]*)?/?$'
+    match = re.match(path_pattern, parsed_url.path)
+    
     subreddit_name = match.group(1)
     submission_id = match.group(2)
 
@@ -149,18 +212,18 @@ def get_reddit_digest(url, summarization_method="top5", model_name=None, detail_
         submission = reddit.submission(id=submission_id)
         submission.comments.replace_more(limit=0) # Flatten comments, remove "More Comments"
 
-        title = submission.title
+        title = sanitize_input(submission.title)
         digest = f"# Reddit Digest: {title}\n\n"
 
         if submission.selftext:
-            digest += f"## Post Content:\n{submission.selftext}\n\n"
+            digest += f"## Post Content:\n{sanitize_input(submission.selftext)}\n\n"
         elif submission.url and not submission.is_self:
-            digest += f"## Post Link:\n{submission.url}\n\n"
+            digest += f"## Post Link:\n{sanitize_input(submission.url)}\n\n"
 
         all_comments = []
         for top_level_comment in submission.comments:
             if isinstance(top_level_comment, praw.models.Comment):
-                all_comments.append(top_level_comment.body)
+                all_comments.append(sanitize_input(top_level_comment.body))
         
         if not all_comments:
             digest += "No top-level comments found.\n\n"
