@@ -41,23 +41,48 @@ def get_available_openai_models():
         return ["gpt-3.5-turbo", "gpt-4", "gpt-4o"] # Fallback
 
 def get_available_gemini_models():
+    """
+    Fetches available Gemini models from the API or returns a fallback list.
+    """
+    # Comprehensive fallback list of known generative models
+    fallback_models = [
+        "gemini-1.0-pro",
+        "gemini-1.5-flash-latest",
+        "gemini-1.5-pro-latest",
+        "gemini-pro",
+        "gemini-pro-vision" # Supports text generation from images and text
+    ]
+    fallback_models.sort()
+
     if not genai:
-        return []
+        return [] # Return empty list if library is not installed
+
     api_keys = load_api_keys()
     api_key = api_keys.get('google_gemini_api_key')
+
+    # If no API key is provided, return the fallback list
     if not api_key or api_key == "YOUR_GOOGLE_GEMINI_API_KEY":
-        return ["gemini-pro", "gemini-1.5-flash", "gemini-1.5-pro"] # Fallback to common models
+        return fallback_models
 
     try:
         genai.configure(api_key=api_key)
+        # List all available models from the API
         models = genai.list_models()
-        # Filter for models that support text generation
-        generative_models = [m.name for m in models if 'generateContent' in m.supported_generation_methods]
-        generative_models.sort()
-        return generative_models
+        
+        # Filter for models that support 'generateContent'
+        # Also, ensure we correctly parse the model name (e.g., "models/gemini-pro")
+        generative_models = [
+            m.name.split('/')[-1] for m in models 
+            if 'generateContent' in m.supported_generation_methods
+        ]
+        
+        # Remove duplicates and sort
+        generative_models = sorted(list(set(generative_models)))
+        
+        return generative_models if generative_models else fallback_models
     except Exception as e:
-        print(f"Error fetching Gemini models: {e}")
-        return ["gemini-pro", "gemini-1.5-flash", "gemini-1.5-pro"] # Fallback
+        print(f"Error fetching Gemini models: {e}. Returning fallback list.")
+        return fallback_models
 
 def load_api_keys():
     api_keys = {}
@@ -155,7 +180,7 @@ def sanitize_input(text):
     if not text:
         return ""
     # Remove or escape potentially dangerous characters
-    sanitized = html.escape(text)
+    sanitized = text
     # Remove null bytes
     sanitized = sanitized.replace('\x00', '')
     return sanitized
@@ -193,33 +218,50 @@ def summarize_with_openai(comments, api_key, model_name, detail_level="standard"
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
-        return f"Error summarizing with OpenAI: {e}"
+        print(f"Error summarizing with OpenAI (detailed): {e}") # For debugging
+        return "An error occurred while summarizing with OpenAI. Please check your API key and try again."
 
 def summarize_with_gemini(comments, api_key, model_name, detail_level="standard"):
+    """
+    Summarizes comments using the Google Gemini API.
+    """
     if not genai:
-        return "Google Generative AI library not installed."
+        return "Google Generative AI library not installed. Please run 'pip install google-generativeai'."
+    
     if not api_key or api_key == "YOUR_GOOGLE_GEMINI_API_KEY":
-        return "Google Gemini API key not configured in praw.ini."
+        return "Google Gemini API key not configured. Please add it to your .env file or praw.ini."
 
     genai.configure(api_key=api_key)
     
     comment_text = "\n".join(comments)
     
-    if detail_level == "concise":
-        prompt_instruction = "Summarize the following Reddit comments very concisely, in 1-2 sentences:"
-    elif detail_level == "detailed":
-        prompt_instruction = "Summarize the following Reddit comments in great detail, including all key arguments, counter-arguments, and important nuances. Aim for a comprehensive summary of the whole Reddit thread:"
-    else: # standard
-        prompt_instruction = "Summarize the following Reddit comments:"
+    # Define prompts based on detail level
+    prompts = {
+        "concise": "Summarize the following Reddit comments very concisely, in 1-2 sentences:",
+        "detailed": "Summarize the following Reddit comments in great detail, including all key arguments, counter-arguments, and important nuances. Aim for a comprehensive summary of the whole Reddit thread:",
+        "standard": "Summarize the following Reddit comments:"
+    }
+    prompt_instruction = prompts.get(detail_level, prompts["standard"])
 
-    prompt = f"{prompt_instruction}\n\n{comment_text}\n\nSummary:"
+    full_prompt = f"{prompt_instruction}\n\n{comment_text}\n\nSummary:"
 
     try:
+        # Ensure the model name is correctly formatted (e.g., "models/gemini-pro")
+        if not model_name.startswith("models/"):
+            model_name = f"models/{model_name}"
+            
         model = genai.GenerativeModel(model_name)
-        response = model.generate_content(prompt)
+        response = model.generate_content(full_prompt)
+        
+        # Check for empty or invalid response
+        if not response.text or not response.text.strip():
+            return "The model returned an empty response. Please try again."
+            
         return response.text.strip()
     except Exception as e:
-        return f"Error summarizing with Google Gemini: {e}"
+        error_message = f"Error summarizing with Google Gemini: {e}"
+        print(f"{error_message} (Model: {model_name})") # For debugging
+        return "An error occurred while summarizing with Google Gemini. Please check your API key, the selected model, and try again."
 
 def get_reddit_digest(url, summarization_method="top5", model_name=None, detail_level=None):
     # Enhanced URL validation
@@ -284,12 +326,12 @@ def get_reddit_digest(url, summarization_method="top5", model_name=None, detail_
                 comment_count += 1
             digest += "\n"
         elif summarization_method == "openai":
-            digest += f"## OpenAI Summary of Comments (Model: {model_name or 'default'}):\n\n"
-            summary = summarize_with_openai(all_comments, api_keys.get('openai_api_key'), model_name)
+            digest += f"## OpenAI Summary of Comments (Model: {model_name or 'default'}, Detail: {detail_level or 'standard'}):\n\n"
+            summary = summarize_with_openai(all_comments, api_keys.get('openai_api_key'), model_name, detail_level)
             digest += f"{summary}\n\n"
         elif summarization_method == "gemini":
-            digest += f"## Google Gemini Summary of Comments (Model: {model_name or 'default'}):\n\n"
-            summary = summarize_with_gemini(all_comments, api_keys.get('google_gemini_api_key'), model_name)
+            digest += f"## Google Gemini Summary of Comments (Model: {model_name or 'default'}, Detail: {detail_level or 'standard'}):\n\n"
+            summary = summarize_with_gemini(all_comments, api_keys.get('google_gemini_api_key'), model_name, detail_level)
             digest += f"{summary}\n\n"
         else:
             digest += "## Top 5 Comments (Default):\n\n"
@@ -302,6 +344,7 @@ def get_reddit_digest(url, summarization_method="top5", model_name=None, detail_
             digest += "\n"
 
     except Exception as e:
-        return f"Error fetching Reddit content or summarizing: {e}\n\nPlease ensure your praw.ini file is correctly configured with your Reddit API credentials and API keys for summarization services if used."
+        print(f"Error fetching Reddit content or summarizing (detailed): {e}") # For debugging
+        return "An unexpected error occurred while fetching Reddit content or summarizing. Please check the URL, your internet connection, and your API credentials."
 
     return digest

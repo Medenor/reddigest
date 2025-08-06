@@ -88,9 +88,13 @@ class RedditDigestApp(QWidget):
         # Call the get_reddit_digest function from reddit_digest.py
         digest_result = get_reddit_digest(url, summarization_method, selected_model, detail_level)
         
-        # Check if the result indicates an error from validation
+        # Check if the result indicates an error from validation or other issues
         if digest_result.startswith("Invalid Reddit URL:"):
             QMessageBox.warning(self, "Input Error", digest_result)
+        elif digest_result.startswith("An error occurred while summarizing with OpenAI.") or \
+             digest_result.startswith("An error occurred while summarizing with Google Gemini.") or \
+             digest_result.startswith("An unexpected error occurred while fetching Reddit content or summarizing."):
+            QMessageBox.warning(self, "Processing Error", digest_result)
         else:
             self.digest_output.setText(digest_result)
 
