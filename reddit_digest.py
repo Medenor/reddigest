@@ -41,9 +41,7 @@ def get_available_openai_models():
         return ["gpt-3.5-turbo", "gpt-4", "gpt-4o"] # Fallback
 
 def get_available_gemini_models():
-    """
-    Fetches available Gemini models from the API or returns a fallback list.
-    """
+    # Fetches available Gemini models from the API or returns a fallback list.
     # Comprehensive fallback list of known generative models
     fallback_models = [
         "gemini-1.0-pro",
@@ -222,9 +220,7 @@ def summarize_with_openai(comments, api_key, model_name, detail_level="standard"
         return "An error occurred while summarizing with OpenAI. Please check your API key and try again."
 
 def summarize_with_gemini(comments, api_key, model_name, detail_level="standard"):
-    """
-    Summarizes comments using the Google Gemini API.
-    """
+    # Summarizes comments using the Google Gemini API.
     if not genai:
         return "Google Generative AI library not installed. Please run 'pip install google-generativeai'."
     
