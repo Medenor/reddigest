@@ -4,6 +4,9 @@ import configparser
 import os
 from urllib.parse import urlparse
 import html
+from dotenv import load_dotenv
+
+load_dotenv() # Load environment variables from .env file
 
 # Try to import OpenAI and Google Generative AI libraries
 try:
@@ -57,14 +60,53 @@ def get_available_gemini_models():
         return ["gemini-pro", "gemini-1.5-flash", "gemini-1.5-pro"] # Fallback
 
 def load_api_keys():
+    api_keys = {}
+
+    # Try to load API keys from environment variables first
+    api_keys['openai_api_key'] = os.getenv('OPENAI_API_KEY')
+    api_keys['google_gemini_api_key'] = os.getenv('GOOGLE_GEMINI_API_KEY')
+
+    # Load Reddit credentials from environment variables
+    reddit_client_id = os.getenv('REDDIT_CLIENT_ID')
+    reddit_client_secret = os.getenv('REDDIT_CLIENT_SECRET')
+    reddit_user_agent = os.getenv('REDDIT_USER_AGENT')
+    reddit_username = os.getenv('REDDIT_USERNAME')
+    reddit_password = os.getenv('REDDIT_PASSWORD')
+
+    # If not found in environment variables, try to load from praw.ini
     config = configparser.ConfigParser()
     config_path = os.path.join(os.path.dirname(__file__), 'praw.ini')
     config.read(config_path)
 
-    api_keys = {}
     if 'api_keys' in config:
-        api_keys['openai_api_key'] = config.get('api_keys', 'openai_api_key', fallback=None)
-        api_keys['google_gemini_api_key'] = config.get('api_keys', 'google_gemini_api_key', fallback=None)
+        if not api_keys['openai_api_key']:
+            api_keys['openai_api_key'] = config.get('api_keys', 'openai_api_key', fallback=None)
+        if not api_keys['google_gemini_api_key']:
+            api_keys['google_gemini_api_key'] = config.get('api_keys', 'google_gemini_api_key', fallback=None)
+    
+    # Load Reddit credentials from praw.ini if not found in environment variables
+    reddit_creds = {}
+    if 'default' in config:
+        if not reddit_client_id:
+            reddit_creds['client_id'] = config.get('default', 'client_id', fallback=None)
+        if not reddit_client_secret:
+            reddit_creds['client_secret'] = config.get('default', 'client_secret', fallback=None)
+        if not reddit_user_agent:
+            reddit_creds['user_agent'] = config.get('default', 'user_agent', fallback=None)
+        if not reddit_username:
+            reddit_creds['username'] = config.get('default', 'username', fallback=None)
+        if not reddit_password:
+            reddit_creds['password'] = config.get('default', 'password', fallback=None)
+
+    # Combine environment variables and praw.ini for Reddit credentials
+    api_keys['reddit_creds'] = {
+        'client_id': reddit_client_id or reddit_creds.get('client_id'),
+        'client_secret': reddit_client_secret or reddit_creds.get('client_secret'),
+        'user_agent': reddit_user_agent or reddit_creds.get('user_agent'),
+        'username': reddit_username or reddit_creds.get('username'),
+        'password': reddit_password or reddit_creds.get('password')
+    }
+
     return api_keys
 
 def validate_reddit_url(url):
@@ -197,10 +239,18 @@ def get_reddit_digest(url, summarization_method="top5", model_name=None, detail_
 
     try:
         # Initialize PRAW with your Reddit API credentials
-        # These should be configured in a praw.ini file or environment variables
+        # Initialize PRAW with your Reddit API credentials
+        # These can be configured in environment variables or a praw.ini file
+        # Environment variables take precedence.
         # For more info: https://praw.readthedocs.io/en/stable/getting_started/quickstart.html#oauth-quick-start
+        reddit_creds = api_keys.get('reddit_creds', {})
+        
         reddit = praw.Reddit(
-            site_name="default" # This refers to the [default] section in your praw.ini
+            client_id=reddit_creds.get('client_id'),
+            client_secret=reddit_creds.get('client_secret'),
+            user_agent=reddit_creds.get('user_agent'),
+            username=reddit_creds.get('username'),
+            password=reddit_creds.get('password')
         )
         reddit.read_only = True # We are only reading data
 

@@ -34,11 +34,35 @@ To set up and run Reddigest, follow these steps:
     pip install -r requirements.txt
     ```
 
-4.  **Configure PRAW (Reddit API Wrapper):**
-    This application uses PRAW to interact with the Reddit API. You need to set up your Reddit API credentials.
+4.  **Configure API Credentials (Reddit & AI):**
+    This application interacts with the Reddit API (via PRAW) and optionally with OpenAI or Google Gemini for AI summarization. You need to set up your API credentials.
+
+    **Recommended Method: Environment Variables (for security and flexibility)**
+    It is highly recommended to use environment variables to store your sensitive API keys. The application will prioritize these variables over `praw.ini`.
+
+    Create a file named `.env` in the root directory of the project (the same directory as `main.py` and `reddit_digest.py`). Add your credentials to this file in the format `KEY=VALUE`. This file should be added to your `.gitignore` (it already is by default).
+
+    Example `.env` file:
+    ```
+    REDDIT_CLIENT_ID="your_reddit_client_id"
+    REDDIT_CLIENT_SECRET="your_reddit_client_secret"
+    REDDIT_USER_AGENT="Reddit Digest App by u/YourRedditUsername"
+    # Optional, if using password-based authentication:
+    # REDDIT_USERNAME="your_reddit_username"
+    # REDDIT_PASSWORD="your_reddit_password"
+
+    OPENAI_API_KEY="your_openai_api_key"
+    GOOGLE_GEMINI_API_KEY="your_google_gemini_api_key"
+    ```
+    You can create a Reddit API application [here](https://www.reddit.com/prefs/apps).
+
+    **Alternative Method: `praw.ini` file**
+    If you prefer not to use environment variables, you can still use the `praw.ini` file.
     *   Rename `praw-example.ini` to `praw.ini`.
-    *   Edit `praw.ini` and fill in your Reddit API credentials (client ID, client secret, user agent, username, password). You can create a Reddit API application [here](https://www.reddit.com/prefs/apps).
-    *   AI features are available on a bring-your-own-key (BYOK) basis, meaning you are responsible for any associated costs with enabling and using these features.
+    *   Edit `praw.ini` and fill in your Reddit API credentials (client ID, client secret, user agent, username, password) and AI API keys.
+    *   Note: Values in environment variables will override values in `praw.ini`.
+
+    AI features are available on a bring-your-own-key (BYOK) basis, meaning you are responsible for any associated costs with enabling and using these features.
 
 ## Usage
 
