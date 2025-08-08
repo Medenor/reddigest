@@ -1,0 +1,4 @@
+{
+    "openai_default_model": "gpt-4.1-nano",
+    "gemini_default_model": "gemini-2.5-flash"
+}

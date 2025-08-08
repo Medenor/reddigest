@@ -4,9 +4,13 @@ import configparser
 import os
 from urllib.parse import urlparse
 import html
+import json
 from dotenv import load_dotenv
 
 load_dotenv() # Load environment variables from .env file
+
+# Define the path for the preferences file
+PREFERENCES_FILE = 'model_preferences.json'
 
 # Try to import OpenAI and Google Generative AI libraries
 try:
@@ -26,24 +30,32 @@ def get_available_openai_models():
         return []
     api_keys = load_api_keys()
     api_key = api_keys.get('openai_api_key')
+    
+    # Always include the desired default model in the fallback list
+    fallback_models = ["gpt-4.1-nano", "gpt-3.5-turbo", "gpt-4", "gpt-4o"] 
+    fallback_models.sort() # Ensure consistent order
+
     if not api_key or api_key == "YOUR_OPENAI_API_KEY":
-        return ["gpt-3.5-turbo", "gpt-4", "gpt-4o"] # Fallback to common models
+        return fallback_models
 
     openai.api_key = api_key
     try:
         models = openai.models.list()
-        # Filter for chat completion models
+        # Filter for chat completion models and add "gpt-4.1-nano" if not already present
         chat_models = [m.id for m in models.data if "gpt" in m.id and "instruct" not in m.id and "embedding" not in m.id]
+        if "gpt-4.1-nano" not in chat_models:
+            chat_models.append("gpt-4.1-nano")
         chat_models.sort()
         return chat_models
     except Exception as e:
         print(f"Error fetching OpenAI models: {e}")
-        return ["gpt-3.5-turbo", "gpt-4", "gpt-4o"] # Fallback
+        return fallback_models
 
 def get_available_gemini_models():
     # Fetches available Gemini models from the API or returns a fallback list.
-    # Comprehensive fallback list of known generative models
+    # Comprehensive fallback list of known generative models, including the desired default
     fallback_models = [
+        "gemini-2.5-flash", # Desired default
         "gemini-1.0-pro",
         "gemini-1.5-flash-latest",
         "gemini-1.5-pro-latest",
@@ -77,10 +89,35 @@ def get_available_gemini_models():
         # Remove duplicates and sort
         generative_models = sorted(list(set(generative_models)))
         
+        # Add "gemini-2.5-flash" if not already present
+        if "gemini-2.5-flash" not in generative_models:
+            generative_models.append("gemini-2.5-flash")
+        
+        generative_models = sorted(list(set(generative_models))) # Re-sort after adding
+        
         return generative_models if generative_models else fallback_models
     except Exception as e:
         print(f"Error fetching Gemini models: {e}. Returning fallback list.")
         return fallback_models
+
+def load_model_preferences():
+    """Loads model preferences from a JSON file."""
+    if os.path.exists(PREFERENCES_FILE):
+        try:
+            with open(PREFERENCES_FILE, 'r') as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            print(f"Warning: Could not decode JSON from {PREFERENCES_FILE}. Returning empty preferences.")
+            return {}
+    return {}
+
+def save_model_preferences(preferences):
+    """Saves model preferences to a JSON file."""
+    try:
+        with open(PREFERENCES_FILE, 'w') as f:
+            json.dump(preferences, f, indent=4)
+    except IOError as e:
+        print(f"Error saving preferences to {PREFERENCES_FILE}: {e}")
 
 def load_api_keys():
     api_keys = {}
@@ -322,12 +359,16 @@ def get_reddit_digest(url, summarization_method="top5", model_name=None, detail_
                 comment_count += 1
             digest += "\n"
         elif summarization_method == "openai":
-            digest += f"## OpenAI Summary of Comments (Model: {model_name or 'default'}, Detail: {detail_level or 'standard'}):\n\n"
-            summary = summarize_with_openai(all_comments, api_keys.get('openai_api_key'), model_name, detail_level)
+            model_preferences = load_model_preferences()
+            actual_model_name = model_name if model_name else model_preferences.get('openai_default_model', 'gpt-4.1-nano')
+            digest += f"## OpenAI Summary of Comments (Model: {actual_model_name}, Detail: {detail_level or 'standard'}):\n\n"
+            summary = summarize_with_openai(all_comments, api_keys.get('openai_api_key'), actual_model_name, detail_level)
             digest += f"{summary}\n\n"
         elif summarization_method == "gemini":
-            digest += f"## Google Gemini Summary of Comments (Model: {model_name or 'default'}, Detail: {detail_level or 'standard'}):\n\n"
-            summary = summarize_with_gemini(all_comments, api_keys.get('google_gemini_api_key'), model_name, detail_level)
+            model_preferences = load_model_preferences()
+            actual_model_name = model_name if model_name else model_preferences.get('gemini_default_model', 'gemini-2.5-flash')
+            digest += f"## Google Gemini Summary of Comments (Model: {actual_model_name}, Detail: {detail_level or 'standard'}):\n\n"
+            summary = summarize_with_gemini(all_comments, api_keys.get('google_gemini_api_key'), actual_model_name, detail_level)
             digest += f"{summary}\n\n"
         else:
             digest += "## Top 5 Comments (Default):\n\n"
