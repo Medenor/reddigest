@@ -84,6 +84,7 @@ This project offers two main approaches for generating summaries:
 
 - **AI Summary (OpenAI or Gemini)**  
   Utilizes an advanced language model (OpenAI or Gemini) to produce an overall summary, synthesizing the key points of the content.
+  By default, "gpt-4.1-nano" (OpenAI) and "gemini-2.5-flash" (Google Gemini) are set as default summarization models in `model_preferences.json`. These are low costs models from both providers, with high context windows suitable for Reddit threads.
 
 **When to use each method:**  
 - Prefer **Top 5 Comments** for a quick, community-driven overview.  
