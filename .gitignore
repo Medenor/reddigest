@@ -1,3 +1,4 @@
 .env
 __pycache__/
 openai-test.py
+digest_history.json
