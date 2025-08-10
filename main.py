@@ -1,15 +1,16 @@
 import sys
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,
-    QLineEdit, QPushButton, QTextEdit, QLabel, QMessageBox, QComboBox, QDialog, QFormLayout
+    QLineEdit, QPushButton, QTextEdit, QLabel, QMessageBox, QComboBox, QDialog, QFormLayout, QListWidget, QListWidgetItem
 )
 from PyQt6.QtCore import Qt
-from reddit_digest import get_reddit_digest, load_model_preferences, save_model_preferences, get_available_openai_models, get_available_gemini_models, load_api_keys # Import necessary functions
+from reddit_digest import get_reddit_digest, load_model_preferences, save_model_preferences, get_available_openai_models, get_available_gemini_models, load_api_keys
+from digest_history import add_digest_to_history, load_digest_history, delete_digest_from_history
 
 class RedditDigestApp(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Reddit Digest App")
+        self.setWindowTitle("Reddigest - Reddit Threads Summarizer")
         self.setGeometry(100, 100, 800, 600)
         self.init_ui()
 
@@ -56,6 +57,10 @@ class RedditDigestApp(QWidget):
         self.digest_output = QTextEdit()
         self.digest_output.setReadOnly(True)
 
+        # History button
+        self.history_button = QPushButton("View History")
+        self.history_button.clicked.connect(self.open_history)
+
         # Copy button
         self.copy_button = QPushButton("Copy Output")
         self.copy_button.clicked.connect(self.copy_digest_output)
@@ -73,6 +78,7 @@ class RedditDigestApp(QWidget):
         bottom_buttons_layout = QHBoxLayout()
         bottom_buttons_layout.addWidget(self.copy_button)
         bottom_buttons_layout.addWidget(self.preferences_button)
+        bottom_buttons_layout.addWidget(self.history_button) # Add history button
         main_layout.addLayout(bottom_buttons_layout)
 
         self.setLayout(main_layout)
@@ -88,6 +94,10 @@ class RedditDigestApp(QWidget):
             # Re-apply model selection to reflect new defaults
             self.update_model_selection(self.method_combo.currentIndex())
 
+    def open_history(self):
+        dialog = HistoryDialog(self)
+        dialog.exec()
+
     def generate_digest(self):
         url = self.url_input.text()
         if not url:
@@ -100,17 +110,19 @@ class RedditDigestApp(QWidget):
         detail_level = self.detail_combo.currentData() if self.detail_combo.isVisible() else None
 
         # Call the get_reddit_digest function from reddit_digest.py
-        digest_result = get_reddit_digest(url, summarization_method, selected_model, detail_level)
+        digest_content, actual_model_used, submission_title = get_reddit_digest(url, summarization_method, selected_model, detail_level)
         
         # Check if the result indicates an error from validation or other issues
-        if digest_result.startswith("Invalid Reddit URL:"):
-            QMessageBox.warning(self, "Input Error", digest_result)
-        elif digest_result.startswith("An error occurred while summarizing with OpenAI.") or \
-             digest_result.startswith("An error occurred while summarizing with Google Gemini.") or \
-             digest_result.startswith("An unexpected error occurred while fetching Reddit content or summarizing."):
-            QMessageBox.warning(self, "Processing Error", digest_result)
+        if digest_content.startswith("Invalid Reddit URL:"):
+            QMessageBox.warning(self, "Input Error", digest_content)
+        elif digest_content.startswith("An error occurred while summarizing with OpenAI.") or \
+             digest_content.startswith("An error occurred while summarizing with Google Gemini.") or \
+             digest_content.startswith("An unexpected error occurred while fetching Reddit content or summarizing."):
+            QMessageBox.warning(self, "Processing Error", digest_content)
         else:
-            self.digest_output.setText(digest_result)
+            self.digest_output.setText(digest_content)
+            # Add to history after successful generation
+            add_digest_to_history(url, summarization_method, actual_model_used, detail_level, digest_content, submission_title)
 
     def update_model_selection(self, index):
         selected_method = self.method_combo.itemData(index)
@@ -185,21 +197,80 @@ class PreferencesDialog(QDialog):
 
         self.setLayout(layout)
 
-    def get_preferences(self):
-        openai_model = self.openai_default_combo.currentText()
-        gemini_model = self.gemini_default_combo.currentText()
-        
-        if openai_model == "None":
-            self.current_preferences.pop('openai_default_model', None)
-        else:
-            self.current_preferences['openai_default_model'] = openai_model
+class HistoryDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Digest History")
+        self.setGeometry(250, 250, 700, 500)
+        self.init_ui()
 
-        if gemini_model == "None":
-            self.current_preferences.pop('gemini_default_model', None)
-        else:
-            self.current_preferences['gemini_default_model'] = gemini_model
+    def init_ui(self):
+        main_layout = QVBoxLayout()
+        
+        self.history_list_widget = QListWidget()
+        self.history_list_widget.itemClicked.connect(self.display_selected_digest)
+        main_layout.addWidget(self.history_list_widget)
+
+        self.digest_display = QTextEdit()
+        self.digest_display.setReadOnly(True)
+        main_layout.addWidget(self.digest_display)
+
+        self.copy_history_output_button = QPushButton("Copy Output")
+        self.copy_history_output_button.clicked.connect(self.copy_history_digest_output)
+        main_layout.addWidget(self.copy_history_output_button)
+
+        self.load_history_entries()
+
+        self.setLayout(main_layout)
+
+    def copy_history_digest_output(self):
+        clipboard = QApplication.clipboard()
+        clipboard.setText(self.digest_display.toPlainText())
+        QMessageBox.information(self, "Copy Success", "Digest content copied to clipboard!")
+
+    def load_history_entries(self):
+        self.history_list_widget.clear()
+        self.history_data = load_digest_history()
+        for entry in self.history_data:
+            list_item_widget = QWidget()
+            item_layout = QHBoxLayout()
+            item_layout.setContentsMargins(0, 0, 0, 0)
             
-        return self.current_preferences
+            # Use the title if available, otherwise fallback to URL
+            display_text = f"{entry['timestamp']} - {entry.get('title', entry['url'])} ({entry['method']})"
+            label = QLabel(display_text)
+            label.setWordWrap(True)
+            
+            delete_button = QPushButton("Delete")
+            delete_button.setFixedSize(80, 24)
+            # Use a lambda to pass the timestamp to the delete function
+            delete_button.clicked.connect(lambda _, ts=entry['timestamp']: self.delete_history_entry(ts))
+            
+            item_layout.addWidget(label, 1) # Give the label a stretch factor of 1
+            item_layout.addWidget(delete_button)
+            list_item_widget.setLayout(item_layout)
+            
+            list_item = QListWidgetItem(self.history_list_widget)
+            list_item.setSizeHint(list_item_widget.sizeHint())
+            self.history_list_widget.addItem(list_item)
+            self.history_list_widget.setItemWidget(list_item, list_item_widget)
+
+    def display_selected_digest(self, item):
+        index = self.history_list_widget.row(item)
+        if 0 <= index < len(self.history_data):
+            selected_entry = self.history_data[index]
+            self.digest_display.setText(selected_entry['digest_content'])
+
+    def delete_history_entry(self, timestamp):
+        reply = QMessageBox.question(self, 'Confirm Deletion', 
+                                     'Are you sure you want to delete this history entry?',
+                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, 
+                                     QMessageBox.StandardButton.No)
+
+        if reply == QMessageBox.StandardButton.Yes:
+            delete_digest_from_history(timestamp)
+            self.load_history_entries() # Refresh the list
+            self.digest_display.clear() # Clear the display
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

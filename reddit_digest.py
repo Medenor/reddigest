@@ -231,8 +231,8 @@ def summarize_with_openai(comments, api_key, model_name, detail_level="standard"
     
     comment_text = "\n".join(comments)
     
-    # Base template for the summary
-    template = """
+    # Define common parts of the template
+    base_template_part = """
 # Reddit Thread Summary: [Thread Title]
 
 ## Key Information
@@ -241,20 +241,24 @@ def summarize_with_openai(comments, api_key, model_name, detail_level="standard"
 *   **Subreddit:** r/[Subreddit Name]
 *   **Publication Date:** [Original Post Date]
 *   **Activity:** [Number of Comments]
-*   **Summarization Method:** [OpenAI model name]
+*   **Summarization Method:** [OpenAI model name] ([Detail Level])
 
 ---
 
 ## Summary
 
 [Write a 2-4 sentence paragraph here summarizing the main issue and the general conclusion of the discussion thread. What is the main takeaway?]
+"""
 
+    central_issue_part = """
 ---
 
 ## Central Issue
 
 [Clearly describe the problem, question, or initial topic raised by the Original Poster (OP).]
+"""
 
+    community_discussion_part = """
 ---
 
 ## Community Discussion Analysis
@@ -286,7 +290,9 @@ def summarize_with_openai(comments, api_key, model_name, detail_level="standard"
 
 *   **[Debate Topic 1]:** [Description of different viewpoints]
 *   **[Debate Topic 2]:** [Description of different viewpoints]
+"""
 
+    report_conclusion_part = """
 ---
 
 ## Report Conclusion
@@ -294,14 +300,25 @@ def summarize_with_openai(comments, api_key, model_name, detail_level="standard"
 [Summarize here the 3 or 4 most important takeaways from the discussion. What are the final recommendations?]
 """
     
-    # Fill in the Key Information section of the template
+    # Construct templates dynamically based on detail_level
+    if detail_level == "concise":
+        selected_template = base_template_part
+        max_tokens_val = 500 # Adjusted for concise summary
+    elif detail_level == "standard":
+        selected_template = base_template_part + central_issue_part + report_conclusion_part
+        max_tokens_val = 1000 # Adjusted for standard summary
+    else: # Default to detailed
+        selected_template = base_template_part + central_issue_part + community_discussion_part + report_conclusion_part
+        max_tokens_val = 2000 # Adjusted for detailed summary
+
+    # Fill in the Key Information section of the selected template
     if submission_data:
-        template = template.replace("[Thread Title]", sanitize_input(submission_data.get('title', 'N/A')))
-        template = template.replace("[Link to thread]", sanitize_input(submission_data.get('url', 'N/A')))
-        template = template.replace("[Subreddit Name]", sanitize_input(submission_data.get('subreddit', 'N/A')))
-        template = template.replace("[Original Post Date]", sanitize_input(submission_data.get('date', 'N/A')))
-        template = template.replace("[Number of Comments]", str(submission_data.get('num_comments', 'N/A')))
-        template = template.replace("[OpenAI model name]", model_name)
+        selected_template = selected_template.replace("[Thread Title]", sanitize_input(submission_data.get('title', 'N/A')))
+        selected_template = selected_template.replace("[Link to thread]", sanitize_input(submission_data.get('url', 'N/A')))
+        selected_template = selected_template.replace("[Subreddit Name]", sanitize_input(submission_data.get('subreddit', 'N/A')))
+        selected_template = selected_template.replace("[Original Post Date]", sanitize_input(submission_data.get('date', 'N/A')))
+        selected_template = selected_template.replace("[Number of Comments]", str(submission_data.get('num_comments', 'N/A')))
+        selected_template = selected_template.replace("[OpenAI model name]", model_name)
     
     # Instruction for the AI to fill the template
     prompt_instruction = f"""
@@ -313,13 +330,12 @@ Reddit Comments:
 {comment_text}
 
 Template to fill:
-{template}
+{selected_template}
 
 Summary:
 """
     
-    # Max tokens adjusted for the template size and detailed summary
-    max_tokens_val = 2000 # Increased to accommodate the template and detailed summary
+    # max_tokens_val is already set based on detail_level
 
     try:
         response = openai.chat.completions.create(
@@ -347,8 +363,8 @@ def summarize_with_gemini(comments, api_key, model_name, detail_level="standard"
     
     comment_text = "\n".join(comments)
     
-    # Base template for the summary
-    template = """
+    # Define common parts of the template
+    base_template_part = """
 # Reddit Thread Summary: [Thread Title]
 
 ## Key Information
@@ -357,20 +373,24 @@ def summarize_with_gemini(comments, api_key, model_name, detail_level="standard"
 *   **Subreddit:** r/[Subreddit Name]
 *   **Publication Date:** [Original Post Date]
 *   **Activity:** [Number of Comments]
-*   **Summarization Method:** [Google Gemini model name]
+*   **Summarization Method:** [Google Gemini model name] ([Detail Level])
 
 ---
 
 ## Summary
 
 [Write a 2-4 sentence paragraph here summarizing the main issue and the general conclusion of the discussion thread. What is the main takeaway?]
+"""
 
+    central_issue_part = """
 ---
 
 ## Central Issue
 
 [Clearly describe the problem, question, or initial topic raised by the Original Poster (OP).]
+"""
 
+    community_discussion_part = """
 ---
 
 ## Community Discussion Analysis
@@ -410,14 +430,22 @@ def summarize_with_gemini(comments, api_key, model_name, detail_level="standard"
 [Summarize here the 3 or 4 most important takeaways from the discussion. What are the final recommendations?]
 """
 
-    # Fill in the Key Information section of the template
+    # Construct templates dynamically based on detail_level
+    if detail_level == "concise":
+        selected_template = base_template_part
+    elif detail_level == "standard":
+        selected_template = base_template_part + central_issue_part + report_conclusion_part
+    else: # Default to detailed
+        selected_template = base_template_part + central_issue_part + community_discussion_part + report_conclusion_part
+
+    # Fill in the Key Information section of the selected template
     if submission_data:
-        template = template.replace("[Thread Title]", sanitize_input(submission_data.get('title', 'N/A')))
-        template = template.replace("[Link to thread]", sanitize_input(submission_data.get('url', 'N/A')))
-        template = template.replace("[Subreddit Name]", sanitize_input(submission_data.get('subreddit', 'N/A')))
-        template = template.replace("[Original Post Date]", sanitize_input(submission_data.get('date', 'N/A')))
-        template = template.replace("[Number of Comments]", str(submission_data.get('num_comments', 'N/A')))
-        template = template.replace("[Google Gemini model name]", model_name)
+        selected_template = selected_template.replace("[Thread Title]", sanitize_input(submission_data.get('title', 'N/A')))
+        selected_template = selected_template.replace("[Link to thread]", sanitize_input(submission_data.get('url', 'N/A')))
+        selected_template = selected_template.replace("[Subreddit Name]", sanitize_input(submission_data.get('subreddit', 'N/A')))
+        selected_template = selected_template.replace("[Original Post Date]", sanitize_input(submission_data.get('date', 'N/A')))
+        selected_template = selected_template.replace("[Number of Comments]", str(submission_data.get('num_comments', 'N/A')))
+        selected_template = selected_template.replace("[Google Gemini model name]", model_name)
 
     # Instruction for the AI to fill the template
     prompt_instruction = f"""
@@ -429,7 +457,7 @@ Reddit Comments:
 {comment_text}
 
 Template to fill:
-{template}
+{selected_template}
 
 Summary:
 """
@@ -543,6 +571,6 @@ def get_reddit_digest(url, summarization_method="top5", model_name=None, detail_
 
     except Exception as e:
         print(f"Error fetching Reddit content or summarizing: {e}")
-        return "An unexpected error occurred while fetching Reddit content or summarizing. Please check the URL, your internet connection, and your API credentials."
+        return "An unexpected error occurred while fetching Reddit content or summarizing. Please check the URL, your internet connection, and your API credentials.", None, None
 
-    return digest
+    return digest, actual_model_name if summarization_method in ["openai", "gemini"] else None, submission.title

@@ -14,7 +14,7 @@ from reddit_digest import get_available_openai_models, get_available_gemini_mode
 class RedditDigestApp(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Reddit Digest App")
+        self.setWindowTitle("Reddigest - Reddit Threads Summarizer")
         self.setGeometry(100, 100, 800, 600)
         self.init_ui()
 

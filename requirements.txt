@@ -19,7 +19,7 @@ httplib2==0.22.0
 httpx==0.28.1
 idna==3.10
 jiter==0.10.0
-openai==1.98.0
+openai==1.99.5
 praw==7.8.1
 prawcore==2.4.0
 proto-plus==1.26.1
