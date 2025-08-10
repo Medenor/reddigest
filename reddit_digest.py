@@ -5,6 +5,7 @@ import os
 from urllib.parse import urlparse
 import html
 import json
+from datetime import datetime
 from dotenv import load_dotenv
 
 load_dotenv() # Load environment variables from .env file
@@ -220,7 +221,7 @@ def sanitize_input(text):
     sanitized = sanitized.replace('\x00', '')
     return sanitized
 
-def summarize_with_openai(comments, api_key, model_name, detail_level="standard"):
+def summarize_with_openai(comments, api_key, model_name, detail_level="standard", submission_data=None):
     if not openai:
         return "OpenAI library not installed."
     if not api_key or api_key == "YOUR_OPENAI_API_KEY":
@@ -230,33 +231,111 @@ def summarize_with_openai(comments, api_key, model_name, detail_level="standard"
     
     comment_text = "\n".join(comments)
     
-    if detail_level == "concise":
-        prompt_instruction = "Summarize the whole Reddit thread very concisely, in 1-2 sentences:"
-        max_tokens_val = 100
-    elif detail_level == "detailed":
-        prompt_instruction = "Summarize the whole Reddit thread in great detail, including all key arguments, counter-arguments, and important nuances. Aim for a comprehensive summary of the Reddit thread as a whole:"
-        max_tokens_val = 1000
-    else: # standard
-        prompt_instruction = "Summarize the whole Reddit thread:"
-        max_tokens_val = 500
+    # Base template for the summary
+    template = """
+# Reddit Thread Summary: [Thread Title]
 
-    prompt = f"{prompt_instruction}\n\n{comment_text}\n\nSummary:"
+## Key Information
+
+*   **Source:** [Link to thread]
+*   **Subreddit:** r/[Subreddit Name]
+*   **Publication Date:** [Original Post Date]
+*   **Activity:** [Number of Comments]
+*   **Summarization Method:** [OpenAI model name]
+
+---
+
+## Summary
+
+[Write a 2-4 sentence paragraph here summarizing the main issue and the general conclusion of the discussion thread. What is the main takeaway?]
+
+---
+
+## Central Issue
+
+[Clearly describe the problem, question, or initial topic raised by the Original Poster (OP).]
+
+---
+
+## Community Discussion Analysis
+
+### General Consensus and Best Practices
+
+*   [Consensus Point 1]
+*   [Consensus Point 2]
+*   [Consensus Point 3]
+
+### Suggested Solutions and Methods
+
+*   **[Method 1]:** [Description of the method]
+*   **[Method 2]:** [Description of the method]
+*   **[Method 3]:** [Description of the method]
+
+### Warnings and Cautionary Points
+
+*   [Warning 1: Description of the risk or cautionary point]
+*   [Warning 2: Description of the risk or cautionary point]
+*   [Warning 3: Description of the risk or cautionary point]
+
+### Tools and Products Mentioned
+
+*   **[Tool/Product 1]:** [Brief description or context of mention]
+*   **[Tool/Product 2]:** [Brief description or context of mention]
+
+### Points of Debate and Divergent Opinions
+
+*   **[Debate Topic 1]:** [Description of different viewpoints]
+*   **[Debate Topic 2]:** [Description of different viewpoints]
+
+---
+
+## Report Conclusion
+
+[Summarize here the 3 or 4 most important takeaways from the discussion. What are the final recommendations?]
+"""
+    
+    # Fill in the Key Information section of the template
+    if submission_data:
+        template = template.replace("[Thread Title]", sanitize_input(submission_data.get('title', 'N/A')))
+        template = template.replace("[Link to thread]", sanitize_input(submission_data.get('url', 'N/A')))
+        template = template.replace("[Subreddit Name]", sanitize_input(submission_data.get('subreddit', 'N/A')))
+        template = template.replace("[Original Post Date]", sanitize_input(submission_data.get('date', 'N/A')))
+        template = template.replace("[Number of Comments]", str(submission_data.get('num_comments', 'N/A')))
+        template = template.replace("[OpenAI model name]", model_name)
+    
+    # Instruction for the AI to fill the template
+    prompt_instruction = f"""
+Please summarize the following Reddit thread comments and fill in the provided template.
+Ensure you strictly adhere to the template structure and fill all bracketed fields `[ ]` with relevant information extracted from the comments.
+If a section has no relevant information, you can leave its bullet points or descriptions empty, but keep the section headers.
+
+Reddit Comments:
+{comment_text}
+
+Template to fill:
+{template}
+
+Summary:
+"""
+    
+    # Max tokens adjusted for the template size and detailed summary
+    max_tokens_val = 2000 # Increased to accommodate the template and detailed summary
 
     try:
         response = openai.chat.completions.create(
             model=model_name,
             messages=[
-                {"role": "system", "content": "You are a helpful assistant that summarizes Reddit comments."},
-                {"role": "user", "content": prompt}
+                {"role": "system", "content": "You are a helpful assistant that summarizes Reddit comments into a structured report."},
+                {"role": "user", "content": prompt_instruction}
             ],
             max_tokens=max_tokens_val
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
-        print(f"Error summarizing with OpenAI (detailed): {e}") # For debugging
+        print(f"Error summarizing with OpenAI: {e}")
         return "An error occurred while summarizing with OpenAI. Please check your API key and try again."
 
-def summarize_with_gemini(comments, api_key, model_name, detail_level="standard"):
+def summarize_with_gemini(comments, api_key, model_name, detail_level="standard", submission_data=None):
     # Summarizes comments using the Google Gemini API.
     if not genai:
         return "Google Generative AI library not installed. Please run 'pip install google-generativeai'."
@@ -268,15 +347,92 @@ def summarize_with_gemini(comments, api_key, model_name, detail_level="standard"
     
     comment_text = "\n".join(comments)
     
-    # Define prompts based on detail level
-    prompts = {
-        "concise": "Summarize the following Reddit comments very concisely, in 1-2 sentences:",
-        "detailed": "Summarize the following Reddit comments in great detail, including all key arguments, counter-arguments, and important nuances. Aim for a comprehensive summary of the whole Reddit thread:",
-        "standard": "Summarize the following Reddit comments:"
-    }
-    prompt_instruction = prompts.get(detail_level, prompts["standard"])
+    # Base template for the summary
+    template = """
+# Reddit Thread Summary: [Thread Title]
 
-    full_prompt = f"{prompt_instruction}\n\n{comment_text}\n\nSummary:"
+## Key Information
+
+*   **Source:** [Link to thread]
+*   **Subreddit:** r/[Subreddit Name]
+*   **Publication Date:** [Original Post Date]
+*   **Activity:** [Number of Comments]
+*   **Summarization Method:** [Google Gemini model name]
+
+---
+
+## Summary
+
+[Write a 2-4 sentence paragraph here summarizing the main issue and the general conclusion of the discussion thread. What is the main takeaway?]
+
+---
+
+## Central Issue
+
+[Clearly describe the problem, question, or initial topic raised by the Original Poster (OP).]
+
+---
+
+## Community Discussion Analysis
+
+### General Consensus and Best Practices
+
+*   [Consensus Point 1]
+*   [Consensus Point 2]
+*   [Consensus Point 3]
+
+### Suggested Solutions and Methods
+
+*   **[Method 1]:** [Description of the method]
+*   **[Method 2]:** [Description of the method]
+*   **[Method 3]:** [Description of the method]
+
+### Warnings and Cautionary Points
+
+*   [Warning 1: Description of the risk or cautionary point]
+*   [Warning 2: Description of the risk or cautionary point]
+*   [Warning 3: Description of the risk or cautionary point]
+
+### Tools and Products Mentioned
+
+*   **[Tool/Product 1]:** [Brief description or context of mention]
+*   **[Tool/Product 2]:** [Brief description or context of mention]
+
+### Points of Debate and Divergent Opinions
+
+*   **[Debate Topic 1]:** [Description of different viewpoints]
+*   **[Debate Topic 2]:** [Description of different viewpoints]
+
+---
+
+## Report Conclusion
+
+[Summarize here the 3 or 4 most important takeaways from the discussion. What are the final recommendations?]
+"""
+
+    # Fill in the Key Information section of the template
+    if submission_data:
+        template = template.replace("[Thread Title]", sanitize_input(submission_data.get('title', 'N/A')))
+        template = template.replace("[Link to thread]", sanitize_input(submission_data.get('url', 'N/A')))
+        template = template.replace("[Subreddit Name]", sanitize_input(submission_data.get('subreddit', 'N/A')))
+        template = template.replace("[Original Post Date]", sanitize_input(submission_data.get('date', 'N/A')))
+        template = template.replace("[Number of Comments]", str(submission_data.get('num_comments', 'N/A')))
+        template = template.replace("[Google Gemini model name]", model_name)
+
+    # Instruction for the AI to fill the template
+    prompt_instruction = f"""
+Please summarize the following Reddit thread comments and fill in the provided template.
+Ensure you strictly adhere to the template structure and fill all bracketed fields `[ ]` with relevant information extracted from the comments.
+If a section has no relevant information, you can leave its bullet points or descriptions empty, but keep the section headers.
+
+Reddit Comments:
+{comment_text}
+
+Template to fill:
+{template}
+
+Summary:
+"""
 
     try:
         # Ensure the model name is correctly formatted (e.g., "models/gemini-pro")
@@ -284,7 +440,7 @@ def summarize_with_gemini(comments, api_key, model_name, detail_level="standard"
             model_name = f"models/{model_name}"
             
         model = genai.GenerativeModel(model_name)
-        response = model.generate_content(full_prompt)
+        response = model.generate_content(prompt_instruction) # Use the full prompt with template
         
         # Check for empty or invalid response
         if not response.text or not response.text.strip():
@@ -293,7 +449,7 @@ def summarize_with_gemini(comments, api_key, model_name, detail_level="standard"
         return response.text.strip()
     except Exception as e:
         error_message = f"Error summarizing with Google Gemini: {e}"
-        print(f"{error_message} (Model: {model_name})") # For debugging
+        print(f"{error_message} (Model: {model_name})")
         return "An error occurred while summarizing with Google Gemini. Please check your API key, the selected model, and try again."
 
 def get_reddit_digest(url, summarization_method="top5", model_name=None, detail_level=None):
@@ -314,10 +470,6 @@ def get_reddit_digest(url, summarization_method="top5", model_name=None, detail_
 
     try:
         # Initialize PRAW with your Reddit API credentials
-        # Initialize PRAW with your Reddit API credentials
-        # These can be configured in environment variables or a praw.ini file
-        # Environment variables take precedence.
-        # For more info: https://praw.readthedocs.io/en/stable/getting_started/quickstart.html#oauth-quick-start
         reddit_creds = api_keys.get('reddit_creds', {})
         
         reddit = praw.Reddit(
@@ -332,13 +484,15 @@ def get_reddit_digest(url, summarization_method="top5", model_name=None, detail_
         submission = reddit.submission(id=submission_id)
         submission.comments.replace_more(limit=0) # Flatten comments, remove "More Comments"
 
-        title = sanitize_input(submission.title)
-        digest = f"# Reddit Digest: {title}\n\n"
-
-        if submission.selftext:
-            digest += f"## Post Content:\n{sanitize_input(submission.selftext)}\n\n"
-        elif submission.url and not submission.is_self:
-            digest += f"## Post Link:\n{sanitize_input(submission.url)}\n\n"
+        # Prepare submission data for the template
+        submission_date = datetime.fromtimestamp(submission.created_utc).strftime('%Y-%m-%d %H:%M:%S')
+        submission_data = {
+            'title': submission.title,
+            'url': url,
+            'subreddit': submission.subreddit.display_name,
+            'date': submission_date,
+            'num_comments': submission.num_comments
+        }
 
         all_comments = []
         for top_level_comment in submission.comments:
@@ -346,10 +500,15 @@ def get_reddit_digest(url, summarization_method="top5", model_name=None, detail_
                 all_comments.append(sanitize_input(top_level_comment.body))
         
         if not all_comments:
-            digest += "No top-level comments found.\n\n"
-            return digest
+            return "No top-level comments found for summarization."
 
         if summarization_method == "top5":
+            digest = f"# Reddit Digest: {sanitize_input(submission.title)}\n\n"
+            if submission.selftext:
+                digest += f"## Post Content:\n{sanitize_input(submission.selftext)}\n\n"
+            elif submission.url and not submission.is_self:
+                digest += f"## Post Link:\n{sanitize_input(submission.url)}\n\n"
+            
             digest += "## Top 5 Comments:\n\n"
             comment_count = 0
             for comment_body in all_comments:
@@ -361,16 +520,18 @@ def get_reddit_digest(url, summarization_method="top5", model_name=None, detail_
         elif summarization_method == "openai":
             model_preferences = load_model_preferences()
             actual_model_name = model_name if model_name else model_preferences.get('openai_default_model', 'gpt-4.1-nano')
-            digest += f"## OpenAI Summary of Comments (Model: {actual_model_name}, Detail: {detail_level or 'standard'}):\n\n"
-            summary = summarize_with_openai(all_comments, api_keys.get('openai_api_key'), actual_model_name, detail_level)
-            digest += f"{summary}\n\n"
+            digest = summarize_with_openai(all_comments, api_keys.get('openai_api_key'), actual_model_name, detail_level, submission_data)
         elif summarization_method == "gemini":
             model_preferences = load_model_preferences()
             actual_model_name = model_name if model_name else model_preferences.get('gemini_default_model', 'gemini-2.5-flash')
-            digest += f"## Google Gemini Summary of Comments (Model: {actual_model_name}, Detail: {detail_level or 'standard'}):\n\n"
-            summary = summarize_with_gemini(all_comments, api_keys.get('google_gemini_api_key'), actual_model_name, detail_level)
-            digest += f"{summary}\n\n"
-        else:
+            digest = summarize_with_gemini(all_comments, api_keys.get('google_gemini_api_key'), actual_model_name, detail_level, submission_data)
+        else: # Default to top5 if method is unrecognized
+            digest = f"# Reddit Digest: {sanitize_input(submission.title)}\n\n"
+            if submission.selftext:
+                digest += f"## Post Content:\n{sanitize_input(submission.selftext)}\n\n"
+            elif submission.url and not submission.is_self:
+                digest += f"## Post Link:\n{sanitize_input(submission.url)}\n\n"
+            
             digest += "## Top 5 Comments (Default):\n\n"
             comment_count = 0
             for comment_body in all_comments:
@@ -381,7 +542,7 @@ def get_reddit_digest(url, summarization_method="top5", model_name=None, detail_
             digest += "\n"
 
     except Exception as e:
-        print(f"Error fetching Reddit content or summarizing (detailed): {e}") # For debugging
+        print(f"Error fetching Reddit content or summarizing: {e}")
         return "An unexpected error occurred while fetching Reddit content or summarizing. Please check the URL, your internet connection, and your API credentials."
 
     return digest
