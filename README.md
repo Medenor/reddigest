@@ -7,11 +7,12 @@ Reddigest is a Python application designed to generate digests from Reddit posts
 
 ## Features
 *   Generate digests from specified subreddits.
-*   Two summarizing approches: Top 5 comments or AI summary (OpenAI or Gemini)
-*   Bring Your Own Keys (BYOK) for AI features
+*   Two summarizing approaches: Top 5 comments or AI summary (OpenAI or Gemini) with configurable detail levels (Concise, Standard, Detailed).
+*   Bring Your Own Keys (BYOK) for AI features.
 *   Output digests in Markdown format.
 *   User-friendly Graphical User Interface (GUI).
 *   Save generated digests to clipboard.
+*   Digest History: View and manage previously generated digests, including the ability to delete entries and copy their content directly from the history window.
 
 ## Installation
 
