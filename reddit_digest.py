@@ -221,7 +221,7 @@ def sanitize_input(text):
     sanitized = sanitized.replace('\x00', '')
     return sanitized
 
-def summarize_with_openai(comments, api_key, model_name, detail_level="standard", submission_data=None):
+def summarize_with_openai(comments, api_key, model_name, detail_level="standard", submission_data=None, enable_text_analysis=False):
     if not openai:
         return "OpenAI library not installed."
     if not api_key or api_key == "YOUR_OPENAI_API_KEY":
@@ -299,6 +299,16 @@ def summarize_with_openai(comments, api_key, model_name, detail_level="standard"
 
 [Summarize here the 3 or 4 most important takeaways from the discussion. What are the final recommendations?]
 """
+
+    sentiment_analysis_part = """
+---
+
+## Sentiment Analysis
+
+*   **Overall Sentiment:** [Overall sentiment of the discussion (e.g., Positive, Negative, Neutral, Mixed)]
+*   **Key Positive Aspects:** [List 2-3 positive themes or points of view]
+*   **Key Negative Aspects:** [List 2-3 negative themes or points of view]
+"""
     
     # Construct templates dynamically based on detail_level
     if detail_level == "concise":
@@ -310,6 +320,10 @@ def summarize_with_openai(comments, api_key, model_name, detail_level="standard"
     else: # Default to detailed
         selected_template = base_template_part + central_issue_part + community_discussion_part + report_conclusion_part
         max_tokens_val = 2000 # Adjusted for detailed summary
+
+    # Add sentiment analysis part if enabled
+    if enable_text_analysis:
+        selected_template += sentiment_analysis_part
 
     # Fill in the Key Information section of the selected template
     if submission_data:
@@ -341,7 +355,7 @@ Summary:
         response = openai.chat.completions.create(
             model=model_name,
             messages=[
-                {"role": "system", "content": "You are a helpful assistant that summarizes Reddit comments into a structured report."},
+                {"role": "system", "content": "You are a helpful assistant that summarizes Reddit comments into a structured report. If text analysis is enabled, also provide overall sentiment and key positive/negative aspects."},
                 {"role": "user", "content": prompt_instruction}
             ],
             max_tokens=max_tokens_val
@@ -351,7 +365,7 @@ Summary:
         print(f"Error summarizing with OpenAI: {e}")
         return "An error occurred while summarizing with OpenAI. Please check your API key and try again."
 
-def summarize_with_gemini(comments, api_key, model_name, detail_level="standard", submission_data=None):
+def summarize_with_gemini(comments, api_key, model_name, detail_level="standard", submission_data=None, enable_text_analysis=False):
     # Summarizes comments using the Google Gemini API.
     if not genai:
         return "Google Generative AI library not installed. Please run 'pip install google-generativeai'."
@@ -430,6 +444,16 @@ def summarize_with_gemini(comments, api_key, model_name, detail_level="standard"
 [Summarize here the 3 or 4 most important takeaways from the discussion. What are the final recommendations?]
 """
 
+    sentiment_analysis_part = """
+---
+
+## Sentiment Analysis
+
+*   **Overall Sentiment:** [Overall sentiment of the discussion (e.g., Positive, Negative, Neutral, Mixed)]
+*   **Key Positive Aspects:** [List 2-3 positive themes or points of view]
+*   **Key Negative Aspects:** [List 2-3 negative themes or points of view]
+"""
+
     # Construct templates dynamically based on detail_level
     if detail_level == "concise":
         selected_template = base_template_part
@@ -437,6 +461,10 @@ def summarize_with_gemini(comments, api_key, model_name, detail_level="standard"
         selected_template = base_template_part + central_issue_part + report_conclusion_part
     else: # Default to detailed
         selected_template = base_template_part + central_issue_part + community_discussion_part + report_conclusion_part
+
+    # Add sentiment analysis part if enabled
+    if enable_text_analysis:
+        selected_template += sentiment_analysis_part
 
     # Fill in the Key Information section of the selected template
     if submission_data:
@@ -480,11 +508,11 @@ Summary:
         print(f"{error_message} (Model: {model_name})")
         return "An error occurred while summarizing with Google Gemini. Please check your API key, the selected model, and try again."
 
-def get_reddit_digest(url, summarization_method="top5", model_name=None, detail_level=None):
+def get_reddit_digest(url, summarization_method="top5", model_name=None, detail_level=None, enable_text_analysis=False):
     # Enhanced URL validation
     is_valid, message = validate_reddit_url(url)
     if not is_valid:
-        return f"Invalid Reddit URL: {message}"
+        return f"Invalid Reddit URL: {message}", None, None
     
     # Parse URL to extract components
     parsed_url = urlparse(url)
@@ -548,11 +576,11 @@ def get_reddit_digest(url, summarization_method="top5", model_name=None, detail_
         elif summarization_method == "openai":
             model_preferences = load_model_preferences()
             actual_model_name = model_name if model_name else model_preferences.get('openai_default_model', 'gpt-4.1-nano')
-            digest = summarize_with_openai(all_comments, api_keys.get('openai_api_key'), actual_model_name, detail_level, submission_data)
+            digest = summarize_with_openai(all_comments, api_keys.get('openai_api_key'), actual_model_name, detail_level, submission_data, enable_text_analysis)
         elif summarization_method == "gemini":
             model_preferences = load_model_preferences()
             actual_model_name = model_name if model_name else model_preferences.get('gemini_default_model', 'gemini-2.5-flash')
-            digest = summarize_with_gemini(all_comments, api_keys.get('google_gemini_api_key'), actual_model_name, detail_level, submission_data)
+            digest = summarize_with_gemini(all_comments, api_keys.get('google_gemini_api_key'), actual_model_name, detail_level, submission_data, enable_text_analysis)
         else: # Default to top5 if method is unrecognized
             digest = f"# Reddit Digest: {sanitize_input(submission.title)}\n\n"
             if submission.selftext:

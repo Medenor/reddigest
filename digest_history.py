@@ -23,7 +23,7 @@ def save_digest_history(history):
     except IOError as e:
         print(f"Error saving history to {HISTORY_FILE}: {e}")
 
-def add_digest_to_history(url, method, model, detail_level, digest_content, title):
+def add_digest_to_history(url, method, model, detail_level, digest_content, title, enable_text_analysis=False):
     """Adds a new digest entry to the history."""
     history = load_digest_history()
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -35,6 +35,7 @@ def add_digest_to_history(url, method, model, detail_level, digest_content, titl
         "method": method,
         "model": model,
         "detail_level": detail_level,
+        "enable_text_analysis": enable_text_analysis, # Store the new flag
         "digest_content": digest_content
     }
     
@@ -46,3 +47,7 @@ def delete_digest_from_history(timestamp):
     history = load_digest_history()
     history = [entry for entry in history if entry.get("timestamp") != timestamp]
     save_digest_history(history)
+
+def clear_all_history():
+    """Clears all entries from the digest history."""
+    save_digest_history([])

@@ -1,6 +1,6 @@
 import sys
 from PyQt6.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QHBoxLayout,
+    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QCheckBox,
     QLineEdit, QPushButton, QTextEdit, QLabel, QMessageBox, QComboBox, QDialog, QFormLayout, QListWidget, QListWidgetItem
 )
 from PyQt6.QtCore import Qt
@@ -44,14 +44,21 @@ class RedditDigestApp(QWidget):
         self.detail_combo.setCurrentText("Standard") # Set "Standard" as default
         self.detail_combo.setVisible(False) # Hidden by default
 
-        self.generate_button = QPushButton("Generate Digest")
-        self.generate_button.clicked.connect(self.generate_digest)
-
         controls_layout.addWidget(self.method_label)
         controls_layout.addWidget(self.method_combo)
         controls_layout.addWidget(self.detail_label)
         controls_layout.addWidget(self.detail_combo)
-        controls_layout.addWidget(self.generate_button)
+        
+        # New row for text analysis checkbox
+        text_analysis_layout = QHBoxLayout()
+        self.enable_text_analysis_checkbox = QCheckBox("Enable Text Analysis (Keywords && Sentiment)")
+        self.enable_text_analysis_checkbox.setChecked(False) # Default to disabled
+        self.enable_text_analysis_checkbox.setVisible(False) # Hidden by default, only for AI methods
+        text_analysis_layout.addWidget(self.enable_text_analysis_checkbox)
+        text_analysis_layout.addStretch(1) # Push checkbox to the left
+
+        self.generate_button = QPushButton("Generate Digest")
+        self.generate_button.clicked.connect(self.generate_digest)
 
         # Digest display area
         self.digest_output = QTextEdit()
@@ -72,6 +79,8 @@ class RedditDigestApp(QWidget):
         # Add layouts and widgets to main layout
         main_layout.addLayout(url_input_layout)
         main_layout.addLayout(controls_layout)
+        main_layout.addLayout(text_analysis_layout) # Add the new checkbox row
+        main_layout.addWidget(self.generate_button) # Move generate button before output
         main_layout.addWidget(self.digest_output)
         
         # Add copy and preferences buttons in a horizontal layout at the bottom
@@ -108,9 +117,10 @@ class RedditDigestApp(QWidget):
         # Model selection is now handled by preferences, not a direct dropdown
         selected_model = None 
         detail_level = self.detail_combo.currentData() if self.detail_combo.isVisible() else None
+        enable_text_analysis = self.enable_text_analysis_checkbox.isChecked() and self.enable_text_analysis_checkbox.isVisible()
 
         # Call the get_reddit_digest function from reddit_digest.py
-        digest_content, actual_model_used, submission_title = get_reddit_digest(url, summarization_method, selected_model, detail_level)
+        digest_content, actual_model_used, submission_title = get_reddit_digest(url, summarization_method, selected_model, detail_level, enable_text_analysis)
         
         # Check if the result indicates an error from validation or other issues
         if digest_content.startswith("Invalid Reddit URL:"):
@@ -128,23 +138,20 @@ class RedditDigestApp(QWidget):
         selected_method = self.method_combo.itemData(index)
         self.detail_combo.setVisible(False)
         self.detail_label.setVisible(False)
+        self.enable_text_analysis_checkbox.setVisible(False) # Hide by default
 
-        if selected_method == "openai":
+        if selected_method in ["openai", "gemini"]:
             self.detail_combo.setVisible(True)
             self.detail_label.setVisible(True)
-            # No need to fetch models here, as selection is done in preferences
-            # Check if API key is configured
+            self.enable_text_analysis_checkbox.setVisible(True) # Show for AI methods
+            
             api_keys = load_api_keys()
-            if not api_keys.get('openai_api_key') or api_keys.get('openai_api_key') == "YOUR_OPENAI_API_KEY":
-                QMessageBox.warning(self, "API Key Missing", "OpenAI API key not configured. Please check your .env or praw.ini file.")
-        elif selected_method == "gemini":
-            self.detail_combo.setVisible(True)
-            self.detail_label.setVisible(True)
-            # No need to fetch models here, as selection is done in preferences
-            # Check if API key is configured
-            api_keys = load_api_keys()
-            if not api_keys.get('google_gemini_api_key') or api_keys.get('google_gemini_api_key') == "YOUR_GOOGLE_GEMINI_API_KEY":
-                QMessageBox.warning(self, "API Key Missing", "Google Gemini API key not configured. Please check your .env or praw.ini file.")
+            if selected_method == "openai":
+                if not api_keys.get('openai_api_key') or api_keys.get('openai_api_key') == "YOUR_OPENAI_API_KEY":
+                    QMessageBox.warning(self, "API Key Missing", "OpenAI API key not configured. Please check your .env or praw.ini file.")
+            elif selected_method == "gemini":
+                if not api_keys.get('google_gemini_api_key') or api_keys.get('google_gemini_api_key') == "YOUR_GOOGLE_GEMINI_API_KEY":
+                    QMessageBox.warning(self, "API Key Missing", "Google Gemini API key not configured. Please check your .env or praw.ini file.")
 
     def copy_digest_output(self):
         clipboard = QApplication.clipboard()
@@ -217,7 +224,14 @@ class HistoryDialog(QDialog):
 
         self.copy_history_output_button = QPushButton("Copy Output")
         self.copy_history_output_button.clicked.connect(self.copy_history_digest_output)
-        main_layout.addWidget(self.copy_history_output_button)
+        
+        self.delete_all_history_button = QPushButton("Delete All")
+        self.delete_all_history_button.clicked.connect(self.delete_all_history_entries)
+
+        history_buttons_layout = QHBoxLayout()
+        history_buttons_layout.addWidget(self.copy_history_output_button)
+        history_buttons_layout.addWidget(self.delete_all_history_button)
+        main_layout.addLayout(history_buttons_layout)
 
         self.load_history_entries()
 
@@ -269,6 +283,18 @@ class HistoryDialog(QDialog):
 
         if reply == QMessageBox.StandardButton.Yes:
             delete_digest_from_history(timestamp)
+            self.load_history_entries() # Refresh the list
+            self.digest_display.clear() # Clear the display
+
+    def delete_all_history_entries(self):
+        reply = QMessageBox.question(self, 'Confirm Deletion', 
+                                     'Are you sure you want to delete ALL history entries? This action cannot be undone.',
+                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, 
+                                     QMessageBox.StandardButton.No)
+
+        if reply == QMessageBox.StandardButton.Yes:
+            from digest_history import clear_all_history
+            clear_all_history()
             self.load_history_entries() # Refresh the list
             self.digest_display.clear() # Clear the display
 
