@@ -1,11 +1,13 @@
 <h1 align="center">
   <a href="https://codeberg.org/medenor/reddigest">
-    <img src="docs/images/reddigest_logo.svg" alt="Reddigest Logo" width="250" height="250">
+    <img src="docs/images/reddigest_logo.svg" alt="Reddigest Logo" width="500">
   </a>
 </h1>
 
 <div align="center">
   Reddigest
+  <br />
+  <a href="#about"><strong>Explore the screenshots »</strong></a>
   <br />
   <br />
   <a href="https://codeberg.org/medenor/reddigest/issues/new?assignees=&labels=bug&template=01_BUG_REPORT.md&title=bug%3A+">Report a Bug</a>
@@ -56,13 +58,9 @@ It offers two summarizing approaches: Top 5 comments or AI summary (OpenAI or Ge
 <summary>Screenshots</summary>
 <br>
 
-| Home Page | AI Summary Example |
-| :---: | :---: |
-| <img src="docs/images/reddigest_screenshot_homepage.jpg" title="Home Page" width="100%"> | <img src="docs/images/reddigest_screenshot_ai_summary_example.jpg" title="AI Summary Example" width="100%"> |
-
-| History Window | Top 5 Summary Example |
-| :---: | :---: |
-| <img src="docs/images/reddigest_screenshot_history_window.jpg" title="History Window" width="100%"> | <img src="docs/images/reddigest_screenshot_top5_summary_example.jpg" title="Top 5 Summary Example" width="100%"> |
+| Home Page | AI Summary Example | Top 5 Summary Example | History Window |
+| :---: | :---: | :---: | :---: |
+| <img src="docs/images/reddigest_screenshot_homepage.jpg" title="Home Page" width="100%"> | <img src="docs/images/reddigest_screenshot_ai_summary_example.jpg" title="AI Summary Example" width="100%"> | <img src="docs/images/reddigest_screenshot_top5_summary_example.jpg" title="Top 5 Summary Example" width="100%"> | <img src="docs/images/reddigest_screenshot_history_window.jpg" title="History Window" width="100%"> 
 
 </details>
 
