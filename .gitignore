@@ -2,3 +2,4 @@
 __pycache__/
 openai-test.py
 digest_history.json
+.DS_Store
