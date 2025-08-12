@@ -1,22 +1,70 @@
 import sys
+import os
 from PyQt6.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QCheckBox,
-    QLineEdit, QPushButton, QTextEdit, QLabel, QMessageBox, QComboBox, QDialog, QFormLayout, QListWidget, QListWidgetItem
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QCheckBox,
+    QLineEdit, QPushButton, QTextEdit, QLabel, QMessageBox, QComboBox, QDialog, QFormLayout, QListWidget, QListWidgetItem, QMenuBar, QMenu
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QDir
+from PyQt6.QtGui import QAction
 from reddit_digest import get_reddit_digest, load_model_preferences, save_model_preferences, get_available_openai_models, get_available_gemini_models, load_api_keys
 from digest_history import add_digest_to_history, load_digest_history, delete_digest_from_history
+from theme_manager import ThemeManager
 
-class RedditDigestApp(QWidget):
+class RedditDigestApp(QMainWindow): # Changed from QWidget to QMainWindow
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Reddigest - Reddit Threads Summarizer")
         self.setGeometry(100, 100, 800, 600)
+
+        # Initialize ThemeManager
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        themes_path = os.path.join(current_dir, "themes")
+        QDir.addSearchPath("themes", themes_path) # Register themes directory as a Qt resource path
+        self.theme_manager = ThemeManager(QApplication.instance(), themes_path)
+        self.theme_manager.load_theme("light") # Set initial theme
+
         self.init_ui()
 
     def init_ui(self):
-        # Main layout
-        main_layout = QVBoxLayout()
+        # Central widget and main layout
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        main_layout = QVBoxLayout(central_widget) # Pass central_widget to QVBoxLayout
+
+        # Create the menu bar
+        menubar = self.menuBar()
+
+        # Create the File menu (existing functionality)
+        file_menu = menubar.addMenu('File')
+        
+        # Add existing File menu actions (Import/Export if they were there, or add new ones)
+        # For now, assuming no existing File menu actions in this app, but if there were, they'd go here.
+        # Example:
+        # import_action = QAction('Import', self)
+        # import_action.triggered.connect(self.some_import_method)
+        # file_menu.addAction(import_action)
+
+        # Create the View menu for themes
+        view_menu = menubar.addMenu('View')
+
+        # Create Light Theme action
+        light_theme_action = QAction('Light Theme', self)
+        light_theme_action.triggered.connect(self.theme_manager.set_light_theme)
+        view_menu.addAction(light_theme_action)
+
+        # Create Dark Theme action
+        dark_theme_action = QAction('Dark Theme', self)
+        dark_theme_action.triggered.connect(self.theme_manager.set_dark_theme)
+        view_menu.addAction(dark_theme_action)
+
+        # Add separator
+        view_menu.addSeparator()
+
+        # Create Toggle Fullscreen action
+        self.fullscreen_action = QAction('Toggle Fullscreen', self)
+        self.fullscreen_action.setCheckable(True)
+        self.fullscreen_action.triggered.connect(self.toggle_fullscreen)
+        view_menu.addAction(self.fullscreen_action)
 
         # URL input layout
         url_input_layout = QHBoxLayout()
@@ -89,8 +137,9 @@ class RedditDigestApp(QWidget):
         bottom_buttons_layout.addWidget(self.preferences_button)
         bottom_buttons_layout.addWidget(self.history_button) # Add history button
         main_layout.addLayout(bottom_buttons_layout)
-
-        self.setLayout(main_layout)
+        
+        # Set the layout on the central widget
+        central_widget.setLayout(main_layout)
         
         self.model_preferences = load_model_preferences() # Load preferences on startup
         self.update_model_selection(self.method_combo.currentIndex()) # Set initial visibility
@@ -157,6 +206,14 @@ class RedditDigestApp(QWidget):
         clipboard = QApplication.clipboard()
         clipboard.setText(self.digest_output.toPlainText())
         QMessageBox.information(self, "Copy Success", "Digest content copied to clipboard!")
+
+    def toggle_fullscreen(self):
+        if self.isFullScreen():
+            self.showNormal()
+            self.fullscreen_action.setChecked(False)
+        else:
+            self.showFullScreen()
+            self.fullscreen_action.setChecked(True)
 
 class PreferencesDialog(QDialog):
     def __init__(self, current_preferences, parent=None):
