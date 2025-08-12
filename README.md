@@ -52,6 +52,20 @@ Reddigest is a Python application designed to generate digests from Reddit posts
 
 It offers two summarizing approaches: Top 5 comments or AI summary (OpenAI or Gemini) with configurable detail levels (Concise, Standard, Detailed). Users can bring their own keys (BYOK) for AI features. Digests can be output in Markdown format and saved to the clipboard. It also includes a Digest History to view and manage previously generated digests, and optional sentiment analysis for AI-generated summaries.
 
+<details>
+<summary>Screenshots</summary>
+<br>
+
+| Home Page | AI Summary Example |
+| :---: | :---: |
+| <img src="docs/images/reddigest_screenshot_homepage.jpg" title="Home Page" width="100%"> | <img src="docs/images/reddigest_screenshot_ai_summary_example.jpg" title="AI Summary Example" width="100%"> |
+
+| History Window | Top 5 Summary Example |
+| :---: | :---: |
+| <img src="docs/images/reddigest_screenshot_history_window.jpg" title="History Window" width="100%"> | <img src="docs/images/reddigest_screenshot_top5_summary_example.jpg" title="Top 5 Summary Example" width="100%"> |
+
+</details>
+
 ### Built With
 
 *   Python
@@ -199,4 +213,3 @@ See [LICENSE](LICENSE) for more information.
 
 * **Reddit and all related trademarks, logos, and other proprietary elements are owned by Reddit. This project is not affiliated with or endorsed by Reddit.**
 * Repository files templates provided by [dec0dOS/amazing-github-template](https://github.com/dec0dOS/amazing-github-template)
-
