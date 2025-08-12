@@ -559,13 +559,15 @@ def get_reddit_digest(url, summarization_method="top5", model_name=None, detail_
             return "No top-level comments found for summarization."
 
         if summarization_method == "top5":
-            digest = f"# Reddit Digest: {sanitize_input(submission.title)}\n\n"
-            if submission.selftext:
-                digest += f"## Post Content:\n{sanitize_input(submission.selftext)}\n\n"
-            elif submission.url and not submission.is_self:
-                digest += f"## Post Link:\n{sanitize_input(submission.url)}\n\n"
-            
-            digest += "## Top 5 Comments:\n\n"
+            digest = f"# Reddit Thread Summary: {sanitize_input(submission_data.get('title', 'N/A'))}\n\n"
+            digest += "## Key Information\n\n"
+            digest += f"*   **Source:** {sanitize_input(submission_data.get('url', 'N/A'))}\n"
+            digest += f"*   **Subreddit:** r/{sanitize_input(submission_data.get('subreddit', 'N/A'))}\n"
+            digest += f"*   **Publication Date:** {sanitize_input(submission_data.get('date', 'N/A'))}\n"
+            digest += f"*   **Activity:** {submission_data.get('num_comments', 'N/A')}\n"
+            digest += "*   **Summarization Method:** Top 5 Comments (N/A)\n\n"
+            digest += "---\n\n"
+            digest += "Top 5 Comments:\n"
             comment_count = 0
             for comment_body in all_comments:
                 if comment_count >= 5:
