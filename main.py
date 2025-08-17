@@ -4,11 +4,48 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QCheckBox,
     QLineEdit, QPushButton, QTextEdit, QLabel, QMessageBox, QComboBox, QDialog, QFormLayout, QListWidget, QListWidgetItem, QMenuBar, QMenu
 )
-from PyQt6.QtCore import Qt, QDir
-from PyQt6.QtGui import QAction
+from PyQt6.QtCore import Qt, QDir, QUrl
+from PyQt6.QtGui import QAction, QDesktopServices, QPixmap
 from reddit_digest import get_reddit_digest, load_model_preferences, save_model_preferences, get_available_openai_models, get_available_gemini_models, load_api_keys
 from digest_history import add_digest_to_history, load_digest_history, delete_digest_from_history
 from theme_manager import ThemeManager
+
+# Custom About Dialog for displaying SVG and text
+class AboutDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("About Reddigest")
+        self.setFixedSize(450, 400) # Fixed size for the dialog
+
+        layout = QVBoxLayout(self)
+
+        # Load and display SVG logo
+        logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs", "images", "reddigest_logo.svg")
+        logo_label = QLabel(self)
+        pixmap = QPixmap(logo_path)
+        if not pixmap.isNull():
+            # Scale pixmap to fit within a reasonable size, e.g., 200x200
+            scaled_pixmap = pixmap.scaled(200, 200, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            logo_label.setPixmap(scaled_pixmap)
+            logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        else:
+            logo_label.setText("Logo not found or could not be loaded.")
+            logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(logo_label)
+
+        # App description
+        description_label = QLabel("Reddigest is a desktop application designed to help users summarize Reddit threads.", self)
+        description_label.setWordWrap(True)
+        description_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(description_label)
+
+        # Add a spacer to push content up
+        layout.addStretch(1)
+
+        # OK button
+        ok_button = QPushButton("OK", self)
+        ok_button.clicked.connect(self.accept)
+        layout.addWidget(ok_button)
 
 class RedditDigestApp(QMainWindow): # Changed from QWidget to QMainWindow
     def __init__(self):
@@ -33,16 +70,20 @@ class RedditDigestApp(QMainWindow): # Changed from QWidget to QMainWindow
 
         # Create the menu bar
         menubar = self.menuBar()
-
-        # Create the File menu (existing functionality)
-        file_menu = menubar.addMenu('File')
         
-        # Add existing File menu actions (Import/Export if they were there, or add new ones)
-        # For now, assuming no existing File menu actions in this app, but if there were, they'd go here.
-        # Example:
-        # import_action = QAction('Import', self)
-        # import_action.triggered.connect(self.some_import_method)
-        # file_menu.addAction(import_action)
+        # Create Reddigest menu (first position)
+        reddigest_menu = menubar.addMenu('Reddigest')
+
+        # About Reddigest action
+        about_action = QAction('About Reddigest', self)
+        about_action.triggered.connect(self.show_about_dialog)
+        about_action.setMenuRole(QAction.MenuRole.NoRole) # Prevent macOS from moving it to the application menu
+        reddigest_menu.addAction(about_action)
+
+        # Codeberg repository action
+        codeberg_action = QAction('Codeberg repository', self)
+        codeberg_action.triggered.connect(self.open_codeberg_repo)
+        reddigest_menu.addAction(codeberg_action)
 
         # Create the View menu for themes
         view_menu = menubar.addMenu('View')
@@ -214,6 +255,14 @@ class RedditDigestApp(QMainWindow): # Changed from QWidget to QMainWindow
         else:
             self.showFullScreen()
             self.fullscreen_action.setChecked(True)
+
+    def show_about_dialog(self):
+        dialog = AboutDialog(self)
+        dialog.exec()
+
+    def open_codeberg_repo(self):
+        url = QUrl("https://codeberg.org/Medenor/reddigest")
+        QDesktopServices.openUrl(url)
 
 class PreferencesDialog(QDialog):
     def __init__(self, current_preferences, parent=None):
