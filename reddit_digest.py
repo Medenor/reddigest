@@ -436,7 +436,9 @@ def summarize_with_gemini(comments, api_key, model_name, detail_level="standard"
 
 *   **[Debate Topic 1]:** [Description of different viewpoints]
 *   **[Debate Topic 2]:** [Description of different viewpoints]
+"""
 
+    report_conclusion_part = """
 ---
 
 ## Report Conclusion
