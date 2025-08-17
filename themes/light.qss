@@ -77,7 +77,9 @@ QComboBox::drop-down {
 }
 
 QComboBox::down-arrow {
-    /* image: url(./images/down_arrow_light.png); */ /* Placeholder for arrow icon */
+    image: url(./images/down_arrow_light.png);
+    max-width: 20px;
+
 }
 
 QCheckBox {
