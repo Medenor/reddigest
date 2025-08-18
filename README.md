@@ -6,6 +6,6 @@
 
 <div align="center">
   
-[![Switched to Codeberg](https://img.shields.io/badge/Switched_to-Codeberg-blue?style=flat-square&logo=codeberg&logoColor=white)](https://codeberg.org/medenor/promptvault/)
-https://codeberg.org/medenor/promptvault
+[![Switched to Codeberg](https://img.shields.io/badge/Switched_to-Codeberg-blue?style=flat-square&logo=codeberg&logoColor=white)](https://codeberg.org/medenor/reddigest/)
+https://codeberg.org/medenor/reddigest
 </div>
